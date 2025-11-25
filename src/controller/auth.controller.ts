@@ -12,91 +12,133 @@ const JWT_REFRESH_SECRET =  process.env.JWT_REFRESH_SECRET as string
 
 
 //user registration
-export const registerUser = async (req:Request , res:Response) =>{
-    try{
-        const {
-            name , 
-            email , 
-            password ,
-            confirmPassword , 
-            country ,
-            mobile,
-            accountName , 
-            accountType ,
-            currency ,
-            openingBalance 
-        } = req.body
-        
-        if(!name || !email || !password || !confirmPassword || 
-            !country || !mobile || !accountName || !accountType || !currency
-        ){
-            return res.status(400).json({message : "All fields are required!"})
-        }
+export const registerUser = async (req: Request, res: Response) => {
+  try {
+    const {
+      name,
+      email,
+      password,
+      confirmPassword,
+      country,
+      mobile,
+      accountName,
+      accountType,
+      currency,
+      openingBalance,
+    } = req.body;
 
-        if(password !== confirmPassword){
-            return res.status(400).json({message : "Passwords do not match! Please try again"})
-        }
-
-        const existingUser = await User.findOne({email})
-        if(existingUser){
-            return res.status(409).json({message : "This email already registered!"})
-        }
-
-        const hashedPassword = await bcrypt.hash(password , 10)
-
-        //create account
-        const newAccount = await Account.create({
-            name:accountName,
-            accountType,
-            currency,
-            openingBalance: openingBalance || 0,
-            currentBalance: openingBalance || 0
-        })
-
-        let roles = [Role.USER]
-        if(accountType === AccountType.BUSINESS){
-            roles = [Role.OWNER]
-        }
-
-
-        //create user
-        const newUser = await User.create({
-            accountId: newAccount._id,
-            name,
-            email,
-            password: hashedPassword,
-            country,
-            mobile,
-            roles: roles
-            
-        })
-
-       
-
-        return res.status(201).json(
-            {
-                message: "Registration successfull!",
-                user: {
-                    id: newUser._id,
-                    name: newUser.name,
-                    email: newUser.email,
-                    mobile:newUser.mobile,
-                    roles:newUser.roles
-                },
-                account: {
-                    id:newAccount._id,
-                    name: newAccount.name,
-                    accountType: newAccount.accountType,
-                    currency: newAccount.currency,
-                    openingBalance: newAccount.openingBalance
-                }
-            }
-        )
-    }catch(err){
-        console.error("Registration error : " , err)
-        return res.status(500).json({message : "Internal server error"})
+    
+    if (
+      !name ||
+      !email ||
+      !password ||
+      !confirmPassword ||
+      !country ||
+      !mobile ||
+      !accountName ||
+      !accountType ||
+      !currency
+    ) {
+      return res.status(400).json({ message: "All fields are required!" });
     }
-}
+
+    //Password match
+    if (password !== confirmPassword) {
+      return res
+        .status(400)
+        .json({ message: "Passwords do not match! Please try again." });
+    }
+
+    // Validate name (letters and spaces only)
+    if (!/^[A-Za-z\s]+$/.test(name)) {
+      return res
+        .status(400)
+        .json({ message: "Name can only contain letters and spaces." });
+    }
+
+    //Validate email 
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ message: "Invalid email format." });
+    }
+
+    //Validate mobile number (+ and digits only, length 5-15)
+    if (!/^\+?\d{5,15}$/.test(mobile)) {
+      return res
+        .status(400)
+        .json({ message: "Mobile number must contain only digits and +." });
+    }
+
+    //Validate country (letters and spaces only)
+    if (!/^[A-Za-z\s]+$/.test(country)) {
+      return res
+        .status(400)
+        .json({ message: "Country can only contain letters and spaces." });
+    }
+
+    //Validate opening balance is a number
+    const balance = openingBalance ? Number(openingBalance) : 0;
+    if (isNaN(balance)) {
+      return res.status(400).json({ message: "Opening balance must be a number." });
+    }
+
+    //Check if user already exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(409).json({ message: "This email is already registered!" });
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Create account
+    const newAccount = await Account.create({
+      name: accountName,
+      accountType,
+      currency,
+      openingBalance: balance,
+      currentBalance: balance,
+    });
+
+    //Set roles
+    let roles = [Role.USER];
+    if (accountType === AccountType.BUSINESS) {
+      roles = [Role.OWNER];
+    }
+
+    // Create user
+    const newUser = await User.create({
+      accountId: newAccount._id,
+      name,
+      email,
+      password: hashedPassword,
+      country,
+      mobile,
+      roles: roles,
+    });
+
+    
+    return res.status(201).json({
+      message: "Registration successful!",
+      user: {
+        id: newUser._id,
+        name: newUser.name,
+        email: newUser.email,
+        mobile: newUser.mobile,
+        roles: newUser.roles,
+      },
+      account: {
+        id: newAccount._id,
+        name: newAccount.name,
+        accountType: newAccount.accountType,
+        currency: newAccount.currency,
+        openingBalance: newAccount.openingBalance,
+      },
+    });
+  } catch (err) {
+    console.error("Registration error:", err);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
 
 //user login
 export const loginUser = async (req: Request , res:Response) => {
