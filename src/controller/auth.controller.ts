@@ -219,3 +219,28 @@ export const getMe = async (req: AuthRequest , res:Response) => {
 
     }
 }
+
+//check email
+export const checkEmail = async (req:Request , res:Response) => {
+    try{
+        const {email} = req.body
+        if(!email){
+            return res.status(400).json({
+                available : false,
+                message : "Email is required!"
+            })
+
+        }
+
+        const existingUser = await User.findOne({email})
+
+        if(existingUser){
+            return res.json({available : false})
+        }
+        return res.json({available : true})
+
+    }catch(err){
+        console.error("CheckEmail error:", err);
+        return res.status(500).json({ available: false, message: "Server error" });
+    }
+}
