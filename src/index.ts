@@ -23,7 +23,7 @@ app.use(
 )
 
 app.use("/api/v1/auth" , authRoutes)
-app.use("api/v1/budget" , budgetRoutes)
+app.use("/api/v1/budget" , budgetRoutes)
 
 app.use(errorHandler)
 
