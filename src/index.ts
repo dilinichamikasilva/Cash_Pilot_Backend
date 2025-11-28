@@ -1,16 +1,18 @@
 import express from "express"
 import cors from "cors"
 import dotenv from "dotenv"
-import mongoose, { mongo } from "mongoose"
+import connectDB from "./config/db";
 import authRoutes from "./routes/auth.routes"
 import budgetRoutes from "./routes/budget.routes"
 import { errorHandler } from "./middleware/errorHandler"
+
 dotenv.config()
 
 const SERVER_PORT = process.env.SERVER_PORT
 const MONGO_URI = process.env.MONGO_URI as string
 
 const app = express()
+
 
 app.use(express.json())
 app.use(
@@ -25,16 +27,8 @@ app.use("api/v1/budget" , budgetRoutes)
 
 app.use(errorHandler)
 
-mongoose
-    .connect(MONGO_URI)
-    .then(() => {
-        console.log("DB has connected!")
-    })
-    .catch((err) => {
-        console.log(`DB connection has failed: ${err}`)
-        process.exit(1)
-    })
-
-app.listen(SERVER_PORT, () => {
-    console.log(`Server is running on ${SERVER_PORT}`)
-})
+connectDB(MONGO_URI).then(() => {
+  app.listen(SERVER_PORT, () => {
+    console.log(`Server is running on port ${SERVER_PORT}`);
+  });
+});
