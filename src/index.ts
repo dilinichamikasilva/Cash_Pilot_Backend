@@ -3,6 +3,7 @@ import cors from "cors"
 import dotenv from "dotenv"
 import mongoose, { mongo } from "mongoose"
 import authRoutes from "./routes/auth.routes"
+import budgetRoutes from "./routes/budget.routes"
 dotenv.config()
 
 const SERVER_PORT = process.env.SERVER_PORT
@@ -19,6 +20,7 @@ app.use(
 )
 
 app.use("/api/v1/auth" , authRoutes)
+app.use("api/v1/budget" , budgetRoutes)
 
 mongoose
     .connect(MONGO_URI)
