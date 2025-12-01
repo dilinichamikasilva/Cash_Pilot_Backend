@@ -286,3 +286,54 @@ export const checkEmail = async (req:Request , res:Response) => {
         return res.status(500).json({ available: false, message: "Server error" });
     }
 }
+
+
+// complete registration
+export const completeRegistration = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user.userId; // from auth middleware
+
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const { mobile, country, picture } = req.body;
+
+    if (!mobile || mobile.trim().length < 9) {
+      return res.status(400).json({ message: "Enter a valid mobile number" });
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      {
+        mobile,
+        country,
+        ...(picture && { picture }),
+      },
+      { new: true }
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    return res.json({
+      message: "Registration completed successfully",
+      user: {
+        id: updatedUser._id,
+        name: updatedUser.name,
+        email: updatedUser.email,
+        roles: updatedUser.roles,
+        accountId: updatedUser.accountId,
+        mobile: updatedUser.mobile,
+        country: updatedUser.country,
+        picture: updatedUser.picture,
+      },
+    });
+
+  } catch (err) {
+    console.error("Complete Registration Error:", err);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
