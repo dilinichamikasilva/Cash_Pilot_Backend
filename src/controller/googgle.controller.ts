@@ -19,7 +19,7 @@ export const googleLogin = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "Google token is required" });
     }
 
-    
+    // verify google token
     const ticket = await client.verifyIdToken({
       idToken: id_token,
       audience: process.env.GOOGLE_CLIENT_ID,
@@ -39,12 +39,54 @@ export const googleLogin = async (req: Request, res: Response) => {
     
     let user = await User.findOne({ email });
 
+    // if email already registered but not a google user - block google login
+    if(user && !user.isGoogleUser){
+      return res.status(400).json({
+        message : "This email is registered using a password. Please login normally."
+      })
+    }
     
+
+
+    // existing google user - login directly
+    if( user && user.isGoogleUser){
+      const accessToken = jwt.sign(
+        { 
+          userId: user._id, 
+          accountId: user.accountId, 
+          roles: user.roles 
+        },
+        JWT_SECRET,
+        { expiresIn: "15m" }
+      )
+
+      const refreshToken = jwt.sign(
+        { userId: user._id },
+        JWT_REFRESH_SECRET,
+        { expiresIn: "7d" }
+      )
+
+      return res.json({
+        message: "Google login successful",
+        accessToken,
+        refreshToken,
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          roles: user.roles,
+          accountId: user.accountId,
+          picture: user.picture,
+        },
+      })
+    }
+
+    // new google user -> create account + create user
     if (!user) {
       const newAccount = await Account.create({
         name: `${name}'s Account`,
         accountType: AccountType.PERSONAL,
-        currency: "USD",
+        currency: "LKR",
         openingBalance: 0,
         currentBalance: 0,
       });
@@ -56,14 +98,14 @@ export const googleLogin = async (req: Request, res: Response) => {
         isGoogleUser: true,
         picture,
         password: "", 
-        country: "Unknown",
+        country: "Sri Lanka",
         mobile: "",
         roles: [Role.USER],
        
       });
     }
 
-  
+  // tokens for new google user
     const accessToken = jwt.sign(
       {
         userId: user._id,
