@@ -17,6 +17,8 @@ export interface IUser extends Document{
     country:string
     mobile: string
     roles: Role[]
+    picture?: string        
+    isGoogleUser: boolean
     createdAt: Date
     updatedAt: Date
 }
@@ -26,11 +28,12 @@ const userSchema = new Schema<IUser>(
         accountId: { type: Schema.Types.ObjectId, ref: "Account", required: true },
         name: {type:String, required:true},
         email: {type:String, unique: true, lowercase: true, required:true},
-        password: { type: String, required: true },
-        country: {type: String , required:true},
-        mobile: {type:String , required: true},
+        password: { type: String, required: false , default: "" },
+        country: {type: String , required:false , default:"Sri Lanka"},
+        mobile: {type:String , required: false , default: ""},
         roles: {type: [String], enum: Object.values(Role), default: [Role.USER]},
-        
+        picture: { type: String, default: "" },         
+        isGoogleUser: { type: Boolean, default: false },
     },
     { timestamps: true }
 
