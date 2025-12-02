@@ -297,37 +297,58 @@ export const completeRegistration = async (req: AuthRequest, res: Response) => {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    const { mobile, country, picture } = req.body;
+    const {
+      mobile,
+      country,
+      picture,
+      currency,
+      openingBalance,
+      accountType,
+      role, // USER or OWNER (sent from frontend)
+    } = req.body;
 
     if (!mobile || mobile.trim().length < 9) {
       return res.status(400).json({ message: "Enter a valid mobile number" });
     }
 
-    const updatedUser = await User.findByIdAndUpdate(
-      userId,
-      {
-        mobile,
-        country,
-        ...(picture && { picture }),
-      },
-      { new: true }
-    );
+    // get user with account
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
 
-    if (!updatedUser) {
-      return res.status(404).json({ message: "User not found" });
+    const account = await Account.findById(user.accountId);
+    if (!account)
+      return res.status(404).json({ message: "Account not found" });
+
+    // update user fields
+    user.mobile = mobile;
+    user.country = country;
+    if (picture) user.picture = picture;
+
+    // update role if business
+    if (accountType === "BUSINESS") {
+      user.roles = [Role.OWNER];
     }
+
+    // update account fields
+    account.accountType = accountType === "BUSINESS" ? AccountType.BUSINESS : AccountType.PERSONAL;
+    account.currency = currency || account.currency;
+    account.openingBalance = openingBalance ?? account.openingBalance;
+    account.currentBalance = openingBalance ?? account.currentBalance;
+
+    await user.save();
+    await account.save();
 
     return res.json({
       message: "Registration completed successfully",
       user: {
-        id: updatedUser._id,
-        name: updatedUser.name,
-        email: updatedUser.email,
-        roles: updatedUser.roles,
-        accountId: updatedUser.accountId,
-        mobile: updatedUser.mobile,
-        country: updatedUser.country,
-        picture: updatedUser.picture,
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        roles: user.roles,
+        accountId: user.accountId,
+        mobile: user.mobile,
+        country: user.country,
+        picture: user.picture,
       },
     });
 
@@ -336,4 +357,5 @@ export const completeRegistration = async (req: AuthRequest, res: Response) => {
     return res.status(500).json({ message: "Server error" });
   }
 };
+
 

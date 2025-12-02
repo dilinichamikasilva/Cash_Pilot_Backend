@@ -5,6 +5,7 @@ import { Account, AccountType } from "../models/Accounts";
 import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
 
+
 dotenv.config();
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
@@ -141,3 +142,4 @@ export const googleLogin = async (req: Request, res: Response) => {
     return res.status(500).json({ message: "Server error" });
   }
 };
+
