@@ -246,16 +246,6 @@ export const getMe = async (req: AuthRequest , res:Response) => {
             return res.status(404).json({message : "User not found"})
         }
 
-        // res.json({
-        //     id:user._id,
-        //     name:user.name,
-        //     email:user.email,
-        //     mobile:user.mobile,
-        //     roles:user.roles,
-        //     accountId:user.accountId
-
-        // })
-
         res.json({
           user: {
             id: user._id,
@@ -268,12 +258,42 @@ export const getMe = async (req: AuthRequest , res:Response) => {
             picture: user.picture
           }
         })
+
+        
     }catch(err){
         console.error("GetMe error : " , err)
         res.status(500).json({message : "Internal server error"})
 
     }
 }
+
+// export const getMe = async (req: AuthRequest , res:Response) => {
+//     try{
+//         if(!req.user || !req.user.userId){
+//             return res.status(401).json({message : "Unauthorized"})
+//         }
+
+//         const user = await User.findById(req.user.userId)
+
+//         if(!user){
+//             return res.status(404).json({message : "User not found"})
+//         }
+
+//         res.json({
+//             id: user._id,
+//             name: user.name,
+//             email: user.email,
+//             mobile: user.mobile,
+//             roles: user.roles,
+//             accountId: user.accountId,
+//             picture: user.picture 
+//         })
+//     }catch(err){
+//         console.error("GetMe error : " , err)
+//         res.status(500).json({message : "Internal server error"})
+//     }
+// }
+
 
 //check email
 export const checkEmail = async (req:Request , res:Response) => {
