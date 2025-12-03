@@ -246,14 +246,27 @@ export const getMe = async (req: AuthRequest , res:Response) => {
             return res.status(404).json({message : "User not found"})
         }
 
-        res.json({
-            id:user._id,
-            name:user.name,
-            email:user.email,
-            mobile:user.mobile,
-            roles:user.roles,
-            accountId:user.accountId
+        // res.json({
+        //     id:user._id,
+        //     name:user.name,
+        //     email:user.email,
+        //     mobile:user.mobile,
+        //     roles:user.roles,
+        //     accountId:user.accountId
 
+        // })
+
+        res.json({
+          user: {
+            id: user._id,
+            name: user.name,
+            email: user.email,
+            roles: user.roles,
+            accountId: user.accountId,
+            mobile: user.mobile,
+            country: user.country,
+            picture: user.picture
+          }
         })
     }catch(err){
         console.error("GetMe error : " , err)
@@ -356,6 +369,22 @@ export const completeRegistration = async (req: AuthRequest, res: Response) => {
     console.error("Complete Registration Error:", err);
     return res.status(500).json({ message: "Server error" });
   }
+};
+
+export const updateProfilePicture = async (req: AuthRequest, res: Response) => {
+  const { picture } = req.body;
+
+  if (!picture) {
+    return res.status(400).json({ message: "No picture provided" });
+  }
+
+  const updated = await User.findByIdAndUpdate(
+    req.user.userId,
+    { picture },
+    { new: true }
+  );
+
+  return res.json({ user: updated });
 };
 
 
