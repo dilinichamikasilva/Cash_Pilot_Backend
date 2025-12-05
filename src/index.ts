@@ -4,6 +4,7 @@ import dotenv from "dotenv"
 import connectDB from "./config/db";
 import authRoutes from "./routes/auth.routes"
 import budgetRoutes from "./routes/budget.routes"
+import accounteRoutes from "./routes/account.routes"
 import { errorHandler } from "./middleware/errorHandler"
 
 dotenv.config()
@@ -23,6 +24,7 @@ app.use(
 )
 
 app.use("/api/v1/auth" , authRoutes)
+app.use("/api/v1/account" , accounteRoutes)
 app.use("/api/v1/budget" , budgetRoutes)
 
 app.use(errorHandler)

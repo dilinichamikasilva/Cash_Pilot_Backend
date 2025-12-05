@@ -156,10 +156,16 @@ export const loginUser = async (req: Request , res:Response) => {
             return res.status(401).json({message: "Invalid email or password!"})
         }
 
+
         const isMatch = await bcrypt.compare(password , user.password)
         if(!isMatch){
             return res.status(401).json({message : "Invalid email or password!"})
         }
+
+        const account = await Account.findById(user.accountId)
+          if (!account) {
+            return res.status(404).json({ message: "Account not found" });
+          }
 
         //create access token
         const accessToken = jwt.sign(
@@ -193,6 +199,13 @@ export const loginUser = async (req: Request , res:Response) => {
                     email:user.email,
                     roles:user.roles,
                     accountId:user.accountId
+                },
+                account: {
+                  id: account._id,
+                  name: account.name,          
+                  accountType: account.accountType,
+                  currency: account.currency,
+                  currentBalance: account.currentBalance
                 }
             }
         )
@@ -246,7 +259,12 @@ export const getMe = async (req: AuthRequest , res:Response) => {
             return res.status(404).json({message : "User not found"})
         }
 
-        res.json({
+        const account = await Account.findById(user.accountId)
+          if (!account) {
+              return res.status(404).json({ message: "Account not found" })
+          }
+
+        return res.json({
           user: {
             id: user._id,
             name: user.name,
@@ -256,6 +274,14 @@ export const getMe = async (req: AuthRequest , res:Response) => {
             mobile: user.mobile,
             country: user.country,
             picture: user.picture
+          },
+          account: {
+              id: account._id,
+              name: account.name,        
+              accountType: account.accountType,
+              currency: account.currency,
+              currentBalance: account.currentBalance,
+              openingBalance: account.openingBalance
           }
         })
 
@@ -267,32 +293,7 @@ export const getMe = async (req: AuthRequest , res:Response) => {
     }
 }
 
-// export const getMe = async (req: AuthRequest , res:Response) => {
-//     try{
-//         if(!req.user || !req.user.userId){
-//             return res.status(401).json({message : "Unauthorized"})
-//         }
 
-//         const user = await User.findById(req.user.userId)
-
-//         if(!user){
-//             return res.status(404).json({message : "User not found"})
-//         }
-
-//         res.json({
-//             id: user._id,
-//             name: user.name,
-//             email: user.email,
-//             mobile: user.mobile,
-//             roles: user.roles,
-//             accountId: user.accountId,
-//             picture: user.picture 
-//         })
-//     }catch(err){
-//         console.error("GetMe error : " , err)
-//         res.status(500).json({message : "Internal server error"})
-//     }
-// }
 
 
 //check email
@@ -337,7 +338,7 @@ export const completeRegistration = async (req: AuthRequest, res: Response) => {
       currency,
       openingBalance,
       accountType,
-      role, // USER or OWNER (sent from frontend)
+      role, 
     } = req.body;
 
     if (!mobile || mobile.trim().length < 9) {
@@ -406,5 +407,23 @@ export const updateProfilePicture = async (req: AuthRequest, res: Response) => {
 
   return res.json({ user: updated });
 };
+
+
+// GET account by ID
+export const getAccountById = async (req: Request, res: Response) => {
+  try {
+    const account = await Account.findById(req.params.id);
+
+    if (!account) {
+      return res.status(404).json({ message: "Account not found" });
+    }
+
+    return res.json({ account });
+  } catch (err) {
+    console.error("GetAccount error:", err);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
 
 
