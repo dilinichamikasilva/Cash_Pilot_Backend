@@ -1,14 +1,10 @@
-import  express  from "express";
-import { 
-    createOrUpdateMonthlyAllocation , 
-    addCategory , 
-    getMonthlyAllocation
-} from "../controller/budgetController"
+import { Router } from "express";
+import { getCategories, createMonthlyAllocation, getMonthlyAllocation } from "../controller/budget.controller";
+import { authMiddleWare } from "../middleware/auth.middleware";
 
-const router = express.Router()
+const router = Router();
 
-router.post("/monthly-allocation", createOrUpdateMonthlyAllocation)
-router.post("/category", addCategory)
-router.get("/:userId/:accountId/:month/:year", getMonthlyAllocation)
+router.post("/monthly-allocations", authMiddleWare, createMonthlyAllocation);
+router.get("/monthly-allocations", authMiddleWare, getMonthlyAllocation); 
 
-export default router
+export default router;
