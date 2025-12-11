@@ -4,7 +4,7 @@ import mongoose , {Document , Schema} from "mongoose";
 
 export interface ICategory extends Document{
     _id: mongoose.Types.ObjectId
-    accountId: mongoose.Types.ObjectId;
+    accountId: mongoose.Types.ObjectId
     name : string
     createdAt: Date
     updatedAt: Date

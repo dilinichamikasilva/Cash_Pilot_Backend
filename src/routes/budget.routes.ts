@@ -5,6 +5,6 @@ import { authMiddleWare } from "../middleware/auth.middleware";
 const router = Router();
 
 router.post("/monthly-allocations", authMiddleWare, createMonthlyAllocation);
-router.get("/monthly-allocations", authMiddleWare, getMonthlyAllocation); 
+router.get("/view-monthly-allocations", authMiddleWare, getMonthlyAllocation); 
 
 export default router;

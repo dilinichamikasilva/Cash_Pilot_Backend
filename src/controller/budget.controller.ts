@@ -88,10 +88,62 @@ export const createMonthlyAllocation = async (req: AuthRequest, res: Response) =
   }
 };
 
+// export const getMonthlyAllocation = async (req: Request, res: Response) => {
+//   try {
+//     const { accountId, month, year } = req.query;
+    
+//     if (!accountId || !month || !year) 
+//       return res.status(400).json({ message: "accountId, month and year required" });
+
+//     const allocation = await MonthlyAllocation.findOne({
+//       accountId,
+//       month: Number(month),
+//       year: Number(year),
+//     }).lean();
+
+//     if (!allocation) 
+//       return res.status(404).json({ message: "Not found" });
+
+//     // const categories = await AllocationCategory.find({
+//     //   monthlyAllocationId: allocation._id,
+//     // }).populate("categoryId");
+
+//     // return res.json({ allocation, categories });
+
+//     const allocationCategories = await AllocationCategory.find({
+//       monthlyAllocationId: allocation._id,
+//     }).populate("categoryId");
+
+//     const categories = allocationCategories.map((item) => ({
+//       id: item._id,
+//       name: item.categoryId?.name || "Unknown",
+//       budget: item.budget,
+//       spent: item.spent,
+//     }));
+
+//     const allocatedSum = categories.reduce((sum, c) => sum + c.budget, 0);
+//     const remaining = allocation.totalAllocated - allocatedSum;
+
+//     return res.json({
+//       allocation,
+//       categories,
+//       totals: {
+//         allocatedSum,
+//         remaining,
+//       },
+//     });
+
+//   } catch (err) {
+//     console.error("getMonthlyAllocation error:", err);
+//     return res.status(500).json({ message: "Server error" });
+//   }
+//
+
 export const getMonthlyAllocation = async (req: Request, res: Response) => {
   try {
     const { accountId, month, year } = req.query;
-    if (!accountId || !month || !year) 
+    
+    if (!accountId || !month || !year)
       return res.status(400).json({ message: "accountId, month and year required" });
 
     const allocation = await MonthlyAllocation.findOne({
@@ -100,17 +152,34 @@ export const getMonthlyAllocation = async (req: Request, res: Response) => {
       year: Number(year),
     }).lean();
 
-    if (!allocation) 
+    if (!allocation)
       return res.status(404).json({ message: "Not found" });
 
-    const categories = await AllocationCategory.find({
+    const allocationCategories = await AllocationCategory.find({
       monthlyAllocationId: allocation._id,
-    }).populate("categoryId");
+    })
+    .populate("categoryId")
+    .lean() as any[];  // ← IMPORTANT FIX
 
-    return res.json({ allocation, categories });
-    
+    const categories = allocationCategories.map((item) => ({
+      id: item._id,
+      name: item.categoryId.name, // ← no error now
+      budget: item.budget,
+      spent: item.spent,
+    }));
+
+    const allocatedSum = categories.reduce((sum, c) => sum + c.budget, 0);
+    const remaining = allocation.totalAllocated - allocatedSum;
+
+    return res.json({
+      allocation,
+      categories,
+      totals: { allocatedSum, remaining },
+    });
+
   } catch (err) {
     console.error("getMonthlyAllocation error:", err);
     return res.status(500).json({ message: "Server error" });
   }
 };
+

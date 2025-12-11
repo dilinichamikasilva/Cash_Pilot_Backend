@@ -9,6 +9,14 @@ export interface IAllocationCategory extends Document {
   spent: number;
 }
 
+export interface IAllocationCategoryPopulated extends Omit<IAllocationCategory , "categoryId"> {
+  categoryId: {
+    _id: mongoose.Types.ObjectId;
+    name: string;
+    accountId: mongoose.Types.ObjectId;
+  };
+}
+
 const allocationCategorySchema = new Schema<IAllocationCategory>(
   {
     monthlyAllocationId: {
