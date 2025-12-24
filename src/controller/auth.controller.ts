@@ -450,4 +450,71 @@ export const logoutUser = async (req: Request, res: Response) => {
   }
 };
 
+// Update User Settings
+export const updateSettings = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const { name, country, mobile, picture, accountName } = req.body;
+
+    // 1. Update the User document
+    // We use findById then save() to ensure any pre-save hooks or 
+    // validation logic is triggered.
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Only update if the field was provided in the request
+    if (name !== undefined) user.name = name;
+    if (country !== undefined) user.country = country;
+    if (mobile !== undefined) user.mobile = mobile;
+    if (picture !== undefined) user.picture = picture; // Base64 string saved here
+
+    await user.save();
+
+    // 2. Update the Account name if provided
+    let account = await Account.findById(user.accountId);
+    if (account && accountName) {
+      account.name = accountName;
+      await account.save();
+    }
+
+    // 3. Return the response in a format the frontend expects
+    return res.status(200).json({
+      message: "Settings updated successfully",
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        roles: user.roles,
+        accountId: user.accountId,
+        mobile: user.mobile,
+        country: user.country,
+        picture: user.picture
+      },
+      account: account ? {
+        id: account._id,
+        name: account.name,
+        accountType: account.accountType,
+        currency: account.currency,
+        currentBalance: account.currentBalance
+      } : null
+    });
+
+  } catch (err: any) {
+    console.error("Update Settings Error:", err);
+    
+    // If MongoDB throws a size limit error (Document exceeds 16MB)
+    if (err.code === 10334 || err.message.includes("too large")) {
+      return res.status(413).json({ message: "Image data is too large for the database." });
+    }
+
+    return res.status(500).json({ message: "Failed to update settings" });
+  }
+};
+
 
