@@ -1,8 +1,9 @@
 import { Request, Response } from "express";
-import { AuthRequest } from "../middleware/auth.middleware";
-import { Category } from "../models/Category";
-import { MonthlyAllocation } from "../models/MonthlyAllocations";
+import { AuthRequest } from "../middleware/auth.middleware"
+import { Category } from "../models/Category"
+import { MonthlyAllocation } from "../models/MonthlyAllocations"
 import { AllocationCategory } from "../models/AllocationCategory"
+import { OverSpendingAlert } from "../models/OverSpendingAlerts"
 import mongoose from "mongoose";
 
 export const getCategories = async (req: Request, res: Response) => {
@@ -88,57 +89,6 @@ export const createMonthlyAllocation = async (req: AuthRequest, res: Response) =
   }
 };
 
-// export const getMonthlyAllocation = async (req: Request, res: Response) => {
-//   try {
-//     const { accountId, month, year } = req.query;
-    
-//     if (!accountId || !month || !year) 
-//       return res.status(400).json({ message: "accountId, month and year required" });
-
-//     const allocation = await MonthlyAllocation.findOne({
-//       accountId,
-//       month: Number(month),
-//       year: Number(year),
-//     }).lean();
-
-//     if (!allocation) 
-//       return res.status(404).json({ message: "Not found" });
-
-//     // const categories = await AllocationCategory.find({
-//     //   monthlyAllocationId: allocation._id,
-//     // }).populate("categoryId");
-
-//     // return res.json({ allocation, categories });
-
-//     const allocationCategories = await AllocationCategory.find({
-//       monthlyAllocationId: allocation._id,
-//     }).populate("categoryId");
-
-//     const categories = allocationCategories.map((item) => ({
-//       id: item._id,
-//       name: item.categoryId?.name || "Unknown",
-//       budget: item.budget,
-//       spent: item.spent,
-//     }));
-
-//     const allocatedSum = categories.reduce((sum, c) => sum + c.budget, 0);
-//     const remaining = allocation.totalAllocated - allocatedSum;
-
-//     return res.json({
-//       allocation,
-//       categories,
-//       totals: {
-//         allocatedSum,
-//         remaining,
-//       },
-//     });
-
-//   } catch (err) {
-//     console.error("getMonthlyAllocation error:", err);
-//     return res.status(500).json({ message: "Server error" });
-//   }
-//
-
 export const getMonthlyAllocation = async (req: Request, res: Response) => {
   try {
     const { accountId, month, year } = req.query;
@@ -180,6 +130,69 @@ export const getMonthlyAllocation = async (req: Request, res: Response) => {
   } catch (err) {
     console.error("getMonthlyAllocation error:", err);
     return res.status(500).json({ message: "Server error" });
+  }
+};
+
+export const updateCategorySpending = async (req: AuthRequest, res: Response) => {
+  try {
+    const { allocationCategoryId, actualAmount } = req.body;
+    const userId = req.user.userId;
+    const accountId = req.user.accountId;
+
+    if (!allocationCategoryId || actualAmount === undefined) {
+      return res.status(400).json({ message: "Allocation Category ID and Actual Amount are required" });
+    }
+
+   
+    const allocCat = await AllocationCategory.findById(allocationCategoryId).populate({
+        path: 'monthlyAllocationId',
+        select: 'userId accountId totalAllocated'
+    });
+
+    if (!allocCat) {
+      return res.status(404).json({ message: "Budget category allocation not found" });
+    }
+
+    
+    allocCat.spent = Number(actualAmount);
+    await allocCat.save();
+
+    
+    const isOverspent = allocCat.spent > allocCat.budget;
+    const difference = allocCat.budget - allocCat.spent; 
+
+    let alertGenerated = false;
+    if (isOverspent) {
+      
+      await OverSpendingAlert.create({
+        userId,
+        accountId,
+        monthlyAllocationId: allocCat.monthlyAllocationId,
+        categoryId: allocCat.categoryId,
+        allocatedAmount: allocCat.budget,
+        spentAmount: allocCat.spent,
+        overamount: allocCat.spent - allocCat.budget,
+        msg: `Warning: You have exceeded your budget for this category by Rs. ${allocCat.spent - allocCat.budget}`,
+        alertDate: new Date()
+      });
+      alertGenerated = true;
+    }
+
+    return res.status(200).json({
+      message: "Actual expense updated successfully",
+      data: {
+        categoryName: (allocCat as any).categoryId?.name, 
+        budget: allocCat.budget,
+        actualSpent: allocCat.spent,
+        difference: difference,
+        status: isOverspent ? "OVERSPENT" : "WITHIN_BUDGET",
+        alertGenerated
+      }
+    });
+
+  } catch (err) {
+    console.error("updateCategorySpending error:", err);
+    return res.status(500).json({ message: "Server error while updating spending" });
   }
 };
 
