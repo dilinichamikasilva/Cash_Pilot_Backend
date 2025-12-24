@@ -345,7 +345,6 @@ export const completeRegistration = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ message: "Enter a valid mobile number" });
     }
 
-    // get user with account
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ message: "User not found" });
 
@@ -353,12 +352,12 @@ export const completeRegistration = async (req: AuthRequest, res: Response) => {
     if (!account)
       return res.status(404).json({ message: "Account not found" });
 
-    // update user fields
+
     user.mobile = mobile;
     user.country = country;
     if (picture) user.picture = picture;
 
-    // update role if business
+  
     if (accountType === "BUSINESS") {
       user.roles = [Role.OWNER];
     }
@@ -425,5 +424,30 @@ export const getAccountById = async (req: Request, res: Response) => {
   }
 };
 
+// Logout user
+export const logoutUser = async (req: Request, res: Response) => {
+  try {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+      return res.status(400).json({ message: "Refresh token is required!" });
+    }
+
+    /**
+     * Logic:
+     * If you store refresh tokens in your Database (recommended), 
+     * you should delete/nullify it here.
+     * * Example:
+     * await User.updateOne({ _id: req.user.userId }, { $unset: { refreshToken: "" } });
+     */
+
+    return res.status(200).json({ 
+      message: "Logged out successfully from server." 
+    });
+  } catch (err) {
+    console.error("Logout error:", err);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
 
 
