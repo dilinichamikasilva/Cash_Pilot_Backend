@@ -10,7 +10,7 @@ export const createTransaction = async (req: AuthRequest | any , res: Response) 
     const userId = req.user.userId;
     const accountId = req.user.accountId;
 
-    // req.file.path now contains the secure https URL from Cloudinary
+   
     const billImage = req.file ? req.file.path : undefined; 
 
     const allocCat = await AllocationCategory.findById(allocationCategoryId);
@@ -35,5 +35,25 @@ export const createTransaction = async (req: AuthRequest | any , res: Response) 
     res.status(201).json({ success: true, transaction: newTransaction });
   } catch (err) {
     res.status(500).json({ message: "Upload failed" });
+  }
+};
+
+export const getTransactionsByCategory = async (req: AuthRequest | any, res: Response) => {
+  try {
+    const { allocationCategoryId } = req.params;
+
+    
+    const allocCat = await AllocationCategory.findById(allocationCategoryId);
+    if (!allocCat) return res.status(404).json({ message: "Category not found" });
+
+  
+    const transactions = await Transaction.find({
+      userId: req.user.userId,
+      categoryId: allocCat.categoryId
+    }).sort({ date: -1 }); 
+
+    res.status(200).json({ success: true, transactions });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to fetch transactions" });
   }
 };
