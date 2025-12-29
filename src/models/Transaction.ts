@@ -19,6 +19,7 @@ export interface ITransaction extends Document{
     _id: mongoose.Types.ObjectId
     userId: mongoose.Types.ObjectId
     accountId: mongoose.Types.ObjectId
+    allocationCategoryId: mongoose.Types.ObjectId
     categoryId: mongoose.Types.ObjectId
     type : TransactionType
     amount: number
@@ -34,6 +35,7 @@ const transactionSchema = new Schema<ITransaction>(
     {
         userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
         accountId: { type: Schema.Types.ObjectId, ref: "Account", required: true },
+        allocationCategoryId: { type: Schema.Types.ObjectId, ref: "AllocationCategory", required: true },
         categoryId: { type: Schema.Types.ObjectId, ref: "Category", required: true },
         type: { type: String, enum: Object.values(TransactionType)},
         amount: {type : Number , required:true},

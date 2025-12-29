@@ -89,6 +89,50 @@ export const createMonthlyAllocation = async (req: AuthRequest, res: Response) =
   }
 };
 
+// export const getMonthlyAllocation = async (req: Request, res: Response) => {
+//   try {
+//     const { accountId, month, year } = req.query;
+    
+//     if (!accountId || !month || !year)
+//       return res.status(400).json({ message: "accountId, month and year required" });
+
+//     const allocation = await MonthlyAllocation.findOne({
+//       accountId,
+//       month: Number(month),
+//       year: Number(year),
+//     }).lean();
+
+//     if (!allocation)
+//       return res.status(404).json({ message: "Not found" });
+
+//     const allocationCategories = await AllocationCategory.find({
+//       monthlyAllocationId: allocation._id,
+//     })
+//     .populate("categoryId")
+//     .lean() as any[];  // ← IMPORTANT FIX
+
+//     const categories = allocationCategories.map((item) => ({
+//       id: item._id,
+//       name: item.categoryId.name, // ← no error now
+//       budget: item.budget,
+//       spent: item.spent,
+//     }));
+
+//     const allocatedSum = categories.reduce((sum, c) => sum + c.budget, 0);
+//     const remaining = allocation.totalAllocated - allocatedSum;
+
+//     return res.json({
+//       allocation,
+//       categories,
+//       totals: { allocatedSum, remaining },
+//     });
+
+//   } catch (err) {
+//     console.error("getMonthlyAllocation error:", err);
+//     return res.status(500).json({ message: "Server error" });
+//   }
+// };
+
 export const getMonthlyAllocation = async (req: Request, res: Response) => {
   try {
     const { accountId, month, year } = req.query;
@@ -109,22 +153,31 @@ export const getMonthlyAllocation = async (req: Request, res: Response) => {
       monthlyAllocationId: allocation._id,
     })
     .populate("categoryId")
-    .lean() as any[];  // ← IMPORTANT FIX
+    .lean() as any[];
 
     const categories = allocationCategories.map((item) => ({
       id: item._id,
-      name: item.categoryId.name, // ← no error now
+      name: item.categoryId.name,
       budget: item.budget,
       spent: item.spent,
     }));
 
-    const allocatedSum = categories.reduce((sum, c) => sum + c.budget, 0);
-    const remaining = allocation.totalAllocated - allocatedSum;
+    // --- THE FIX IS HERE ---
+    // 1. Sum of what you PLANNED to spend
+    const allocatedSum = categories.reduce((sum, c) => sum + c.budget, 0); 
+    // 2. Sum of what you ACTUALLY spent
+    const totalSpentSoFar = categories.reduce((sum, c) => sum + c.spent, 0); 
+    // 3. Remaining is Income minus Actual Spending (This updates when you delete transactions!)
+    const remaining = allocation.totalAllocated - totalSpentSoFar; 
 
     return res.json({
       allocation,
       categories,
-      totals: { allocatedSum, remaining },
+      totals: { 
+        allocatedSum, 
+        actualSpent: totalSpentSoFar, 
+        remaining 
+      },
     });
 
   } catch (err) {
