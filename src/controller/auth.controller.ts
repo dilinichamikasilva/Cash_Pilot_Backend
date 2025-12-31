@@ -503,13 +503,6 @@ export const logoutUser = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "Refresh token is required!" });
     }
 
-    /**
-     * Logic:
-     * If you store refresh tokens in your Database (recommended), 
-     * you should delete/nullify it here.
-     * * Example:
-     * await User.updateOne({ _id: req.user.userId }, { $unset: { refreshToken: "" } });
-     */
 
     return res.status(200).json({ 
       message: "Logged out successfully from server." 
@@ -530,30 +523,28 @@ export const updateSettings = async (req: AuthRequest, res: Response) => {
 
     const { name, country, mobile, picture, accountName } = req.body;
 
-    // 1. Update the User document
-    // We use findById then save() to ensure any pre-save hooks or 
-    // validation logic is triggered.
+   
     const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Only update if the field was provided in the request
+   
     if (name !== undefined) user.name = name;
     if (country !== undefined) user.country = country;
     if (mobile !== undefined) user.mobile = mobile;
-    if (picture !== undefined) user.picture = picture; // Base64 string saved here
+    if (picture !== undefined) user.picture = picture; 
 
     await user.save();
 
-    // 2. Update the Account name if provided
+    
     let account = await Account.findById(user.accountId);
     if (account && accountName) {
       account.name = accountName;
       await account.save();
     }
 
-    // 3. Return the response in a format the frontend expects
+   
     return res.status(200).json({
       message: "Settings updated successfully",
       user: {
@@ -578,7 +569,7 @@ export const updateSettings = async (req: AuthRequest, res: Response) => {
   } catch (err: any) {
     console.error("Update Settings Error:", err);
     
-    // If MongoDB throws a size limit error (Document exceeds 16MB)
+
     if (err.code === 10334 || err.message.includes("too large")) {
       return res.status(413).json({ message: "Image data is too large for the database." });
     }
