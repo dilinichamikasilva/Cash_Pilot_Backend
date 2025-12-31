@@ -26,6 +26,7 @@ export const getCategories = async (req: Request, res: Response) => {
 };
 
 
+
 export const createMonthlyAllocation = async (req: AuthRequest, res: Response) => {
   try {
     const { month, year, totalAllocated, categories } = req.body;
@@ -43,44 +44,60 @@ export const createMonthlyAllocation = async (req: AuthRequest, res: Response) =
       return res.status(400).json({ message: "Allocated sum exceeds income" });
     }
 
-    //create monthly allocations
-    const allocation = await MonthlyAllocation.create({
-      userId,
-      accountId,
-      month,
-      year,
-      carryForwardSavings: 0,
-      totalAllocated,
-      remainingBalance: totalAllocated - sum,
-    });
+    // --- STEP 1: FIND OR CREATE THE MONTHLY ALLOCATION ---
+    // Using findOneAndUpdate with upsert: true handles the "Add or Update" logic
+    const allocation = await MonthlyAllocation.findOneAndUpdate(
+      { accountId, month: Number(month), year: Number(year) },
+      { 
+        userId, 
+        totalAllocated, 
+        remainingBalance: totalAllocated - sum 
+      },
+      { new: true, upsert: true }
+    );
 
-    const allocationEntries = [];
+    // --- STEP 2: MANAGE CATEGORIES ---
+    const currentAllocationEntries = [];
 
     for (const c of categories) {
-      
+      // Find or create the base Category (e.g., "Food")
       let cat = await Category.findOne({ accountId, name: c.name });
-
       if (!cat) {
-        cat = await Category.create({
-          accountId,
-          name: c.name,
-        });
+        cat = await Category.create({ accountId, name: c.name });
       }
 
-      allocationEntries.push({
-        monthlyAllocationId: allocation._id,
-        categoryId: cat._id,
-        budget: Number(c.budget),
-        spent: 0,
-      });
+      // --- STEP 3: UPDATE INDIVIDUAL ALLOCATION CATEGORIES ---
+      // We use findOneAndUpdate here so we don't reset 'spent' to 0 
+      // if the category already existed.
+      await AllocationCategory.findOneAndUpdate(
+        { monthlyAllocationId: allocation._id, categoryId: cat._id },
+        { 
+          $set: { budget: Number(c.budget) },
+          // If it's a new category, set spent to 0. If it exists, leave spent as is.
+          $setOnInsert: { spent: 0 } 
+        },
+        { upsert: true }
+      );
+
+      currentAllocationEntries.push(cat._id);
     }
 
-    const createdAllocationCategories = await AllocationCategory.insertMany(allocationEntries);
+    // --- STEP 4: CLEANUP (Optional) ---
+    // If a user REMOVES a category in the frontend, delete it from the DB
+    await AllocationCategory.deleteMany({
+      monthlyAllocationId: allocation._id,
+      categoryId: { $nin: currentAllocationEntries }
+    });
 
-    return res.status(201).json({
-      message: "Monthly allocation created",
+    // Fetch the final list to return to frontend
+    const updatedCategories = await AllocationCategory.find({ 
+      monthlyAllocationId: allocation._id 
+    }).populate("categoryId");
+
+    return res.status(200).json({
+      message: "Monthly allocation synced successfully",
       allocation,
-      categories: createdAllocationCategories,
+      categories: updatedCategories,
     });
 
   } catch (err) {
@@ -89,49 +106,6 @@ export const createMonthlyAllocation = async (req: AuthRequest, res: Response) =
   }
 };
 
-// export const getMonthlyAllocation = async (req: Request, res: Response) => {
-//   try {
-//     const { accountId, month, year } = req.query;
-    
-//     if (!accountId || !month || !year)
-//       return res.status(400).json({ message: "accountId, month and year required" });
-
-//     const allocation = await MonthlyAllocation.findOne({
-//       accountId,
-//       month: Number(month),
-//       year: Number(year),
-//     }).lean();
-
-//     if (!allocation)
-//       return res.status(404).json({ message: "Not found" });
-
-//     const allocationCategories = await AllocationCategory.find({
-//       monthlyAllocationId: allocation._id,
-//     })
-//     .populate("categoryId")
-//     .lean() as any[];  // ← IMPORTANT FIX
-
-//     const categories = allocationCategories.map((item) => ({
-//       id: item._id,
-//       name: item.categoryId.name, // ← no error now
-//       budget: item.budget,
-//       spent: item.spent,
-//     }));
-
-//     const allocatedSum = categories.reduce((sum, c) => sum + c.budget, 0);
-//     const remaining = allocation.totalAllocated - allocatedSum;
-
-//     return res.json({
-//       allocation,
-//       categories,
-//       totals: { allocatedSum, remaining },
-//     });
-
-//   } catch (err) {
-//     console.error("getMonthlyAllocation error:", err);
-//     return res.status(500).json({ message: "Server error" });
-//   }
-// };
 
 export const getMonthlyAllocation = async (req: Request, res: Response) => {
   try {
