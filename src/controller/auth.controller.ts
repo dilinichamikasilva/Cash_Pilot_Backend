@@ -141,80 +141,150 @@ export const registerUser = async (req: Request, res: Response) => {
 };
 
 //user login
-export const loginUser = async (req: Request , res:Response) => {
+// export const loginUser = async (req: Request , res:Response) => {
     
-    try{
-        const {email , password} = req.body
+//     try{
+//         const {email , password} = req.body
 
-        if(!email || !password){
-            return res.status(400).json({message : "Email and password are required!"})
-        }
+//         if(!email || !password){
+//             return res.status(400).json({message : "Email and password are required!"})
+//         }
 
-        const user = await User.findOne({email})
+//         const user = await User.findOne({email})
 
-        if(!user){
-            return res.status(401).json({message: "Invalid email or password!"})
-        }
+//         if(!user){
+//             return res.status(401).json({message: "Invalid email or password!"})
+//         }
 
 
-        const isMatch = await bcrypt.compare(password , user.password)
-        if(!isMatch){
-            return res.status(401).json({message : "Invalid email or password!"})
-        }
+//         const isMatch = await bcrypt.compare(password , user.password)
+//         if(!isMatch){
+//             return res.status(401).json({message : "Invalid email or password!"})
+//         }
 
-        const account = await Account.findById(user.accountId)
-          if (!account) {
-            return res.status(404).json({ message: "Account not found" });
-          }
+//         const account = await Account.findById(user.accountId)
+//           if (!account) {
+//             return res.status(404).json({ message: "Account not found" });
+//           }
 
-        //create access token
-        const accessToken = jwt.sign(
-            {
-                userId: user._id,
-                accountId:user.accountId,
-                roles:user.roles
-            },
-            JWT_SECRET,
-            {
-                expiresIn : "15m"
-            }
-        )
+//         //create access token
+//         const accessToken = jwt.sign(
+//             {
+//                 userId: user._id,
+//                 accountId:user.accountId,
+//                 roles:user.roles
+//             },
+//             JWT_SECRET,
+//             {
+//                 expiresIn : "15m"
+//             }
+//         )
 
-        //create refresh Token 
-        const refreshToken = jwt.sign(
-            {userId : user._id},
-            JWT_REFRESH_SECRET,
-            {expiresIn : "7d"}
+//         //create refresh Token 
+//         const refreshToken = jwt.sign(
+//             {userId : user._id},
+//             JWT_REFRESH_SECRET,
+//             {expiresIn : "7d"}
 
-        )
+//         )
 
-        return res.status(200).json(
-            {
-                message : "Login successfully",
-                accessToken,
-                refreshToken,
-                user: {
-                    id:user._id,
-                    name:user.name,
-                    email:user.email,
-                    roles:user.roles,
-                    accountId:user.accountId
-                },
-                account: {
-                  id: account._id,
-                  name: account.name,          
-                  accountType: account.accountType,
-                  currency: account.currency,
-                  currentBalance: account.currentBalance
-                }
-            }
-        )
+//         return res.status(200).json(
+//             {
+//                 message : "Login successfully",
+//                 accessToken,
+//                 refreshToken,
+//                 user: {
+//                     id:user._id,
+//                     name:user.name,
+//                     email:user.email,
+//                     roles:user.roles,
+//                     accountId:user.accountId
+//                 },
+//                 account: {
+//                   id: account._id,
+//                   name: account.name,          
+//                   accountType: account.accountType,
+//                   currency: account.currency,
+//                   currentBalance: account.currentBalance
+//                 }
+//             }
+//         )
 
-    }catch(err){
-        console.error("Login error : " , err)
-        return res.status(500).json({message : "Internal server error!"})
+//     }catch(err){
+//         console.error("Login error : " , err)
+//         return res.status(500).json({message : "Internal server error!"})
+//     }
+// }
+
+// user login
+export const loginUser = async (req: Request, res: Response) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ message: "Email and password are required!" });
     }
-}
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({ 
+        message: "Account not found. Please create an account first!" 
+      });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ message: "Invalid password! Please try again." });
+    }
+
+    const account = await Account.findById(user.accountId);
+    if (!account) {
+      return res.status(404).json({ message: "Associated financial account not found" });
+    }
+
+    const accessToken = jwt.sign(
+      {
+        userId: user._id,
+        accountId: user.accountId,
+        roles: user.roles,
+      },
+      JWT_SECRET,
+      { expiresIn: "15m" }
+    );
+
+    const refreshToken = jwt.sign(
+      { userId: user._id },
+      JWT_REFRESH_SECRET,
+      { expiresIn: "7d" }
+    );
+
+
+    return res.status(200).json({
+      message: "Login successfully",
+      accessToken,
+      refreshToken,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        roles: user.roles,
+        accountId: user.accountId,
+      },
+      account: {
+        id: account._id,
+        name: account.name,
+        accountType: account.accountType,
+        currency: account.currency,
+        currentBalance: account.currentBalance,
+      },
+    });
+
+  } catch (err) {
+    console.error("Login error : ", err);
+    return res.status(500).json({ message: "Internal server error!" });
+  }
+};
 
 
 // refresh token
