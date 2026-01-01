@@ -32,6 +32,8 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
+    "@google/genai": "^1.34.0",
+    "axios": "^1.13.2",
     "bcrypt": "^6.0.0",
     "cloudinary": "^1.41.3",
     "cors": "^2.8.5",
