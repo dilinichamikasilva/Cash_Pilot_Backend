@@ -6,6 +6,7 @@ import authRoutes from "./routes/auth.routes"
 import budgetRoutes from "./routes/budget.routes"
 import accounteRoutes from "./routes/account.routes"
 import categoryRoutes from "./routes/category.routes"
+import analyticsRoutes from "./routes/analytics.routes"
 import { errorHandler } from "./middleware/errorHandler"
 import transactionRoutes from "./routes/transaction.routes";
 
@@ -32,6 +33,7 @@ app.use("/api/v1/account" , accounteRoutes)
 app.use("/api/v1/budget" , budgetRoutes)
 app.use("/api/v1/category", categoryRoutes);
 app.use("/api/v1/transaction", transactionRoutes);
+app.use("/api/v1/analytics", analyticsRoutes);
 
 app.use(errorHandler)
 
