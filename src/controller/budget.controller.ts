@@ -26,7 +26,6 @@ export const getCategories = async (req: Request, res: Response) => {
 };
 
 
-
 export const createMonthlyAllocation = async (req: AuthRequest, res: Response) => {
   try {
     const { month, year, totalAllocated, categories } = req.body;
@@ -39,13 +38,13 @@ export const createMonthlyAllocation = async (req: AuthRequest, res: Response) =
     if (!Array.isArray(categories)) 
       return res.status(400).json({ message: "categories must be an array" });
 
+    // Validate if the sum is within the total income pool
     const sum = categories.reduce((s: number, c: any) => s + Number(c.budget || 0), 0);
     if (sum > totalAllocated) {
       return res.status(400).json({ message: "Allocated sum exceeds income" });
     }
 
-    // --- STEP 1: FIND OR CREATE THE MONTHLY ALLOCATION ---
-    // Using findOneAndUpdate with upsert: true handles the "Add or Update" logic
+    // 1. FIND OR CREATE THE MONTHLY ALLOCATION HEADER
     const allocation = await MonthlyAllocation.findOneAndUpdate(
       { accountId, month: Number(month), year: Number(year) },
       { 
@@ -56,53 +55,57 @@ export const createMonthlyAllocation = async (req: AuthRequest, res: Response) =
       { new: true, upsert: true }
     );
 
-    // --- STEP 2: MANAGE CATEGORIES ---
+    // 2. PROCESS CATEGORIES (Handle Renaming and Updates)
     const currentAllocationEntries = [];
 
     for (const c of categories) {
-      // Find or create the base Category (e.g., "Food")
+      // Find the base Category. If it's "New" or "Renamed", find or create it.
       let cat = await Category.findOne({ accountId, name: c.name });
       if (!cat) {
         cat = await Category.create({ accountId, name: c.name });
       }
 
-      // --- STEP 3: UPDATE INDIVIDUAL ALLOCATION CATEGORIES ---
-      // We use findOneAndUpdate here so we don't reset 'spent' to 0 
-      // if the category already existed.
-      await AllocationCategory.findOneAndUpdate(
+      // 3. SYNC THE ALLOCATION-SPECIFIC DATA
+      // By using findOneAndUpdate, we preserve the 'spent' amount even if you change the 'budget'
+      const updatedAllocCat = await AllocationCategory.findOneAndUpdate(
         { monthlyAllocationId: allocation._id, categoryId: cat._id },
         { 
           $set: { budget: Number(c.budget) },
-          // If it's a new category, set spent to 0. If it exists, leave spent as is.
-          $setOnInsert: { spent: 0 } 
+          $setOnInsert: { spent: 0 } // Only set spent to 0 if this is brand new to this month
         },
-        { upsert: true }
+        { upsert: true, new: true }
       );
 
       currentAllocationEntries.push(cat._id);
     }
 
-    // --- STEP 4: CLEANUP (Optional) ---
-    // If a user REMOVES a category in the frontend, delete it from the DB
+    // 4. THE DELETE LOGIC (Cleanup)
+    // This is the "One by One" delete logic. If a category ID is NOT in the 
+    // new list sent from the frontend, it gets removed from this specific month.
     await AllocationCategory.deleteMany({
       monthlyAllocationId: allocation._id,
       categoryId: { $nin: currentAllocationEntries }
     });
 
-    // Fetch the final list to return to frontend
-    const updatedCategories = await AllocationCategory.find({ 
+    // Fetch the final list with names to send back to the UI
+    const finalCategories = await AllocationCategory.find({ 
       monthlyAllocationId: allocation._id 
     }).populate("categoryId");
 
     return res.status(200).json({
-      message: "Monthly allocation synced successfully",
+      message: "Monthly budget updated successfully",
       allocation,
-      categories: updatedCategories,
+      categories: finalCategories.map(item => ({
+        id: item._id,
+        name: (item.categoryId as any).name,
+        budget: item.budget,
+        spent: item.spent
+      })),
     });
 
   } catch (err) {
-    console.error("createMonthlyAllocation error:", err);
-    return res.status(500).json({ message: "Server error" });
+    console.error("Sync Error:", err);
+    return res.status(500).json({ message: "Server error during sync" });
   }
 };
 
