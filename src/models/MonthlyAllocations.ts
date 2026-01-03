@@ -11,6 +11,7 @@ export interface IMonthlyAllocation extends Document{
     carryForwardSavings : number
     totalAllocated : number
     remainingBalance : number
+    // userEnteredIncome: number
     createdAt: Date
     updatedAt: Date
 }
@@ -21,6 +22,7 @@ const monthlyAllocationSchema = new Schema<IMonthlyAllocation>(
         accountId: { type: Schema.Types.ObjectId, ref: "Account", required: true },
         month: {type : Number , required:true},
         year: {type : Number , required:true},
+        // userEnteredIncome: { type: Number, default: 0, required: true },
         carryForwardSavings: {type : Number , default:0},
         totalAllocated: {type : Number , default:0},
         remainingBalance: {type : Number , default:0}
