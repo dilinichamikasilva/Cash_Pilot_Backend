@@ -26,86 +26,103 @@ export const getCategories = async (req: Request, res: Response) => {
 };
 
 
+
 export const createMonthlyAllocation = async (req: AuthRequest, res: Response) => {
   try {
-    const { month, year, totalAllocated, categories } = req.body;
-    const userId = req.user.userId;
-    const accountId = req.user.accountId || req.body.accountId;
+    const { month, year, categories } = req.body;
+    const userEnteredIncome = Number(req.body.income || 0);
+    const { userId, accountId } = req.user;
 
-    if (!month || !year)
-      return res.status(400).json({ message: "month and year required" });
+    // 1. DETERMINE CARRY FORWARD
+    let carryForward = 0;
+    const prevDate = new Date(year, month - 2); 
+    const prevM = prevDate.getMonth() + 1;
+    const prevY = prevDate.getFullYear();
 
-    if (!Array.isArray(categories)) 
-      return res.status(400).json({ message: "categories must be an array" });
+    const previousAllocation = await MonthlyAllocation.findOne({ accountId, month: prevM, year: prevY });
 
-    // Validate if the sum is within the total income pool
-    const sum = categories.reduce((s: number, c: any) => s + Number(c.budget || 0), 0);
-    if (sum > totalAllocated) {
-      return res.status(400).json({ message: "Allocated sum exceeds income" });
+    if (previousAllocation) {
+      // SCENARIO: Not the first month. Calculate actual savings from previous month.
+      const prevCats = await AllocationCategory.find({ monthlyAllocationId: previousAllocation._id });
+      const totalSpentPrev = prevCats.reduce((sum, c) => sum + (c.spent || 0), 0);
+      
+      // Carry Forward = (Previous Total Cash Pool) - (Actual total spent)
+      carryForward = previousAllocation.totalAllocated - totalSpentPrev;
+    } else {
+      // SCENARIO: First month (e.g., John in January). Use Opening Balance.
+      const account = await mongoose.model("Account").findById(accountId);
+      carryForward = account?.openingBalance || 0;
     }
 
-    // 1. FIND OR CREATE THE MONTHLY ALLOCATION HEADER
+    // Total Cash available for this month
+    const totalPool = carryForward + userEnteredIncome;
+
+    // 2. UPSERT HEADER
     const allocation = await MonthlyAllocation.findOneAndUpdate(
       { accountId, month: Number(month), year: Number(year) },
       { 
         userId, 
-        totalAllocated, 
-        remainingBalance: totalAllocated - sum 
+        totalAllocated: totalPool, 
+        carryForwardSavings: carryForward,
+        // userEnteredIncome should be saved to a field if you add it to your schema 
+        // to help the frontend display it correctly later.
       },
       { new: true, upsert: true }
     );
 
-    // 2. PROCESS CATEGORIES (Handle Renaming and Updates)
-    const currentAllocationEntries = [];
-
-    for (const c of categories) {
-      // Find the base Category. If it's "New" or "Renamed", find or create it.
+    // 3. SYNC CATEGORIES (Bulk Write for performance)
+    const categoryOps = await Promise.all(categories.map(async (c: any) => {
       let cat = await Category.findOne({ accountId, name: c.name });
-      if (!cat) {
-        cat = await Category.create({ accountId, name: c.name });
-      }
+      if (!cat) cat = await Category.create({ accountId, name: c.name });
+      return { categoryId: cat._id, budget: Number(c.budget) };
+    }));
 
-      // 3. SYNC THE ALLOCATION-SPECIFIC DATA
-      // By using findOneAndUpdate, we preserve the 'spent' amount even if you change the 'budget'
-      const updatedAllocCat = await AllocationCategory.findOneAndUpdate(
-        { monthlyAllocationId: allocation._id, categoryId: cat._id },
-        { 
-          $set: { budget: Number(c.budget) },
-          $setOnInsert: { spent: 0 } // Only set spent to 0 if this is brand new to this month
+    const bulkOps = categoryOps.map(op => ({
+      updateOne: {
+        filter: { monthlyAllocationId: allocation._id, categoryId: op.categoryId },
+        update: { 
+          $set: { budget: op.budget },
+          $setOnInsert: { spent: 0 } 
         },
-        { upsert: true, new: true }
-      );
+        upsert: true
+      }
+    }));
 
-      currentAllocationEntries.push(cat._id);
-    }
+    if (bulkOps.length > 0) await AllocationCategory.bulkWrite(bulkOps);
 
-    // 4. THE DELETE LOGIC (Cleanup)
-    // This is the "One by One" delete logic. If a category ID is NOT in the 
-    // new list sent from the frontend, it gets removed from this specific month.
-    await AllocationCategory.deleteMany({
-      monthlyAllocationId: allocation._id,
-      categoryId: { $nin: currentAllocationEntries }
-    });
+    // 4. CLEANUP & FINAL RESPONSE
+    const activeIds = categoryOps.map(op => op.categoryId);
+    await AllocationCategory.deleteMany({ monthlyAllocationId: allocation._id, categoryId: { $nin: activeIds } });
 
-    // Fetch the final list with names to send back to the UI
-    const finalCategories = await AllocationCategory.find({ 
-      monthlyAllocationId: allocation._id 
-    }).populate("categoryId");
-
-    return res.status(200).json({
-      message: "Monthly budget updated successfully",
-      allocation,
-      categories: finalCategories.map(item => ({
-        id: item._id,
-        name: (item.categoryId as any).name,
-        budget: item.budget,
-        spent: item.spent
-      })),
-    });
+    return res.status(200).json({ message: "Budget Sync Complete", allocation });
 
   } catch (err) {
-    console.error("Sync Error:", err);
-    return res.status(500).json({ message: "Server error during sync" });
+    console.error(err);
+    return res.status(500).json({ message: "Server Error" });
+  }
+};
+
+
+export const checkFirstMonth = async (req: Request, res: Response) => {
+  try {
+    const { accountId, month, year } = req.query;
+
+    // Find the earliest budget record for this account
+    const earliestBudget = await MonthlyAllocation.findOne({ accountId })
+      .sort({ year: 1, month: 1 })
+      .lean();
+
+    // If no budgets exist yet, the current one being planned is effectively the first
+    if (!earliestBudget) {
+      return res.json({ isFirstMonth: true });
+    }
+
+    // Check if the requested month/year matches the earliest record
+    const isFirst = earliestBudget.month === Number(month) && earliestBudget.year === Number(year);
+
+    return res.json({ isFirstMonth: isFirst });
+  } catch (err) {
+    return res.status(500).json({ message: "Server error" });
   }
 };
 
