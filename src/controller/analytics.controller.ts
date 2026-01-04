@@ -14,13 +14,13 @@ export const getAnalyticsSummary = async (req: Request, res: Response) => {
     startDate.setMonth(startDate.getMonth() - monthsRequested);
     startDate.setHours(0, 0, 0, 0);
 
-    // 1. Fetch all expenses for the period
+    
     const transactions = await Transaction.find({
       accountId: accountObjId,
       date: { $gte: startDate }
     }).lean();
 
-    // 2. Fetch all income allocations for the period
+    
     const allocations = await MonthlyAllocation.find({
       accountId: accountObjId,
       $or: [
@@ -33,14 +33,14 @@ export const getAnalyticsSummary = async (req: Request, res: Response) => {
     const current = new Date(startDate);
     const endDate = new Date();
 
-    // 3. Simple Monthly Loop
+    
     while (current <= endDate) {
       const month = current.getMonth();
       const year = current.getFullYear();
       
       const label = current.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
 
-      // Calculate total expenses for this month
+      
       const monthlyExpenses = transactions
         .filter(t => {
           const d = new Date(t.date);
@@ -80,7 +80,7 @@ export const getAnalyticsSummary = async (req: Request, res: Response) => {
       categories: categoryData,
       totalPeriodSpend: trends.reduce((acc, curr) => acc + curr.expenses, 0),
       topExpenseCategory: categoryData[0]?.name || "None",
-      // Savings rate based on the latest month
+      
       savingsRate: trends.length > 0 && trends[trends.length-1].income > 0 
         ? Math.round((trends[trends.length-1].net / trends[trends.length-1].income) * 100) 
         : 0

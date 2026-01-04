@@ -33,7 +33,7 @@ export const createMonthlyAllocation = async (req: AuthRequest, res: Response) =
     const userEnteredIncome = Number(req.body.income || 0);
     const { userId, accountId } = req.user;
 
-    // 1. DETERMINE CARRY FORWARD
+    
     let carryForward = 0;
     const prevDate = new Date(year, month - 2); 
     const prevM = prevDate.getMonth() + 1;
@@ -42,35 +42,34 @@ export const createMonthlyAllocation = async (req: AuthRequest, res: Response) =
     const previousAllocation = await MonthlyAllocation.findOne({ accountId, month: prevM, year: prevY });
 
     if (previousAllocation) {
-      // SCENARIO: Not the first month. Calculate actual savings from previous month.
+      
       const prevCats = await AllocationCategory.find({ monthlyAllocationId: previousAllocation._id });
       const totalSpentPrev = prevCats.reduce((sum, c) => sum + (c.spent || 0), 0);
       
-      // Carry Forward = (Previous Total Cash Pool) - (Actual total spent)
+     
       carryForward = previousAllocation.totalAllocated - totalSpentPrev;
     } else {
-      // SCENARIO: First month (e.g., John in January). Use Opening Balance.
+      
       const account = await mongoose.model("Account").findById(accountId);
       carryForward = account?.openingBalance || 0;
     }
 
-    // Total Cash available for this month
+    
     const totalPool = carryForward + userEnteredIncome;
 
-    // 2. UPSERT HEADER
+   
     const allocation = await MonthlyAllocation.findOneAndUpdate(
       { accountId, month: Number(month), year: Number(year) },
       { 
         userId, 
         totalAllocated: totalPool, 
         carryForwardSavings: carryForward,
-        // userEnteredIncome should be saved to a field if you add it to your schema 
-        // to help the frontend display it correctly later.
+       
       },
       { new: true, upsert: true }
     );
 
-    // 3. SYNC CATEGORIES (Bulk Write for performance)
+   
     const categoryOps = await Promise.all(categories.map(async (c: any) => {
       let cat = await Category.findOne({ accountId, name: c.name });
       if (!cat) cat = await Category.create({ accountId, name: c.name });
@@ -90,7 +89,7 @@ export const createMonthlyAllocation = async (req: AuthRequest, res: Response) =
 
     if (bulkOps.length > 0) await AllocationCategory.bulkWrite(bulkOps);
 
-    // 4. CLEANUP & FINAL RESPONSE
+    //  CLEANUP & FINAL RESPONSE
     const activeIds = categoryOps.map(op => op.categoryId);
     await AllocationCategory.deleteMany({ monthlyAllocationId: allocation._id, categoryId: { $nin: activeIds } });
 
@@ -156,12 +155,9 @@ export const getMonthlyAllocation = async (req: Request, res: Response) => {
       spent: item.spent,
     }));
 
-    // --- THE FIX IS HERE ---
-    // 1. Sum of what you PLANNED to spend
+    
     const allocatedSum = categories.reduce((sum, c) => sum + c.budget, 0); 
-    // 2. Sum of what you ACTUALLY spent
     const totalSpentSoFar = categories.reduce((sum, c) => sum + c.spent, 0); 
-    // 3. Remaining is Income minus Actual Spending (This updates when you delete transactions!)
     const remaining = allocation.totalAllocated - totalSpentSoFar; 
 
     return res.json({
