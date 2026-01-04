@@ -1,4 +1,4 @@
-<img width="1919" height="969" alt="2" src="https://github.com/user-attachments/assets/edecd226-ed18-4ee5-9a79-b5f16ffc80de" /># 💲CASH-PILOT BACKEND
+# 💲CASH-PILOT BACKEND
 
 **CashPilot Backend is a TypeScript-based Node.js backend for the CashPilot personal finance and salary management web application. It uses Express, MongoDB (Mongoose), and includes features for authentication, transactions, monthly allocations, file uploads, and AI integration.**
 
