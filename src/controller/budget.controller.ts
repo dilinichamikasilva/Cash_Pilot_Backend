@@ -33,38 +33,40 @@ export const createMonthlyAllocation = async (req: AuthRequest, res: Response) =
     const userEnteredIncome = Number(req.body.income || 0);
     const { userId, accountId } = req.user;
 
+    const existingAllocation = await MonthlyAllocation.findOne({ 
+      accountId, 
+      month: Number(month), 
+      year: Number(year) 
+    });
     
     let carryForward = 0;
-    const prevDate = new Date(year, month - 2); 
-    const prevM = prevDate.getMonth() + 1;
-    const prevY = prevDate.getFullYear();
+    
 
-    const previousAllocation = await MonthlyAllocation.findOne({ accountId, month: prevM, year: prevY });
-
-    if (previousAllocation) {
-      
-      const prevCats = await AllocationCategory.find({ monthlyAllocationId: previousAllocation._id });
-      const totalSpentPrev = prevCats.reduce((sum, c) => sum + (c.spent || 0), 0);
-      
+    if (!existingAllocation) {
      
-      carryForward = previousAllocation.totalAllocated - totalSpentPrev;
-    } else {
-      
-      const account = await mongoose.model("Account").findById(accountId);
-      carryForward = account?.openingBalance || 0;
+      const prevDate = new Date(year, month - 2); 
+      const prevM = prevDate.getMonth() + 1;
+      const prevY = prevDate.getFullYear();
+
+      const previousAllocation = await MonthlyAllocation.findOne({ accountId, month: prevM, year: prevY });
+
+      if (previousAllocation) {
+        const prevCats = await AllocationCategory.find({ monthlyAllocationId: previousAllocation._id });
+        const totalSpentPrev = prevCats.reduce((sum, c) => sum + (c.spent || 0), 0);
+        carryForward = previousAllocation.totalAllocated - totalSpentPrev;
+      } else {
+        const account = await mongoose.model("Account").findById(accountId);
+        carryForward = account?.openingBalance || 0;
+      }
     }
 
-    
-    const totalPool = carryForward + userEnteredIncome;
 
-   
     const allocation = await MonthlyAllocation.findOneAndUpdate(
       { accountId, month: Number(month), year: Number(year) },
       { 
-        userId, 
-        totalAllocated: totalPool, 
-        carryForwardSavings: carryForward,
-       
+        $set: { userId },
+        $inc: { totalAllocated: userEnteredIncome }, 
+        $setOnInsert: { carryForwardSavings: carryForward } 
       },
       { new: true, upsert: true }
     );
