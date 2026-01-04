@@ -22,7 +22,8 @@ app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 app.use(
     cors({
-        origin: ["https://cash-pilot-frontend-qdgt.vercel.app/"],
+        origin: ["https://cash-pilot-frontend-qdgt.vercel.app", 
+            "https://cash-pilot-frontend-qdgt.vercel.app/"],
         methods: ["GET", "POST", "PUT", "DELETE"],
         credentials: true 
     })
