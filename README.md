@@ -9,14 +9,14 @@ Cash_Pilot_BackEnd/
 ├─ src/  
 │ ├─ config/   
 │ ├─ controller/   
-│ ├─ middleware/ 
+│ ├─ middleware/   
 │ ├─ models/   
-│ ├─ routes/   
-│ ├─ utils/   
+│ ├─ routes/     
+│ ├─ utils/     
 │ └─ index.ts  
-├─ .env 
-├─ package-lock.json 
-├─ package.json    
+├─ .env   
+├─ package-lock.json   
+├─ package.json       
 ├─ README.md   
 └─ tsconfig.json 
 
