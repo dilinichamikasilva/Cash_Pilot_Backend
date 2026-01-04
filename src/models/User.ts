@@ -19,6 +19,8 @@ export interface IUser extends Document{
     roles: Role[]
     picture?: string        
     isGoogleUser: boolean
+    resetPasswordToken?: string;
+    resetPasswordExpires?: Date;
     createdAt: Date
     updatedAt: Date
 }
@@ -34,6 +36,8 @@ const userSchema = new Schema<IUser>(
         roles: {type: [String], enum: Object.values(Role), default: [Role.USER]},
         picture: { type: String, default: "" },         
         isGoogleUser: { type: Boolean, default: false },
+        resetPasswordToken: { type: String, default: null },
+        resetPasswordExpires: { type: Date, default: null },
     },
     { timestamps: true }
 

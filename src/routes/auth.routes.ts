@@ -1,6 +1,8 @@
 import {Router} from "express"
 import {registerUser , loginUser , refreshToken , getMe , checkEmail , completeRegistration ,updateProfilePicture , logoutUser,
-    updateSettings
+    updateSettings,
+    resetPassword,
+    forgotPassword
  } from "../controller/auth.controller"
 import { authMiddleWare } from "../middleware/auth.middleware"
 import {googleLogin} from "../controller/googgle.controller"
@@ -18,6 +20,8 @@ router.put("/complete-registration" , authMiddleWare ,  completeRegistration )
 router.put("/profile-picture", authMiddleWare, updateProfilePicture);
 router.post("/logout", logoutUser);
 router.put("/settings", authMiddleWare, updateSettings);
+router.post("/forgot-password", forgotPassword);
+router.post("/reset-password", resetPassword);
 
 
 

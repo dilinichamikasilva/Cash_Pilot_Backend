@@ -4,11 +4,14 @@ import bcrypt from "bcrypt"
 import {User , Role} from "../models/User"
 import { Account , AccountType} from "../models/Accounts"
 import jwt from "jsonwebtoken"
+import { Resend } from 'resend';
+import crypto from 'crypto';
 import dotenv from "dotenv"
 dotenv.config()
 
 const JWT_SECRET =  process.env.JWT_SECRET as string
 const JWT_REFRESH_SECRET =  process.env.JWT_REFRESH_SECRET as string
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 
 //user registration
@@ -500,6 +503,72 @@ export const updateSettings = async (req: AuthRequest, res: Response) => {
     }
 
     return res.status(500).json({ message: "Failed to update settings" });
+  }
+};
+
+//  FORGOT PASSWORD - Generate token and send email
+export const forgotPassword = async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({ message: "User with this email does not exist." });
+    }
+
+    const resetToken = crypto.randomBytes(32).toString("hex");
+    
+    
+    user.resetPasswordToken = crypto.createHash("sha256").update(resetToken).digest("hex");
+    user.resetPasswordExpires = new Date(Date.now() + 3600000); 
+    await user.save();
+
+    
+    const resetUrl = `${process.env.CLIENT_URL}/reset-password?token=${resetToken}`;
+
+    // Send the email
+    await resend.emails.send({
+      from: 'CashPilot <onboarding@resend.dev>', 
+      to: email,
+      subject: 'Reset Your CashPilot Password',
+      html: `
+        <h1>Password Reset Request</h1>
+        <p>You requested a password reset. Please click the link below to set a new password:</p>
+        <a href="${resetUrl}" style="background: #4f46e5; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Reset Password</a>
+        <p>This link will expire in 1 hour.</p>
+      `
+    });
+
+    res.status(200).json({ message: "Reset link sent to your email!" });
+  } catch (err) {
+    res.status(500).json({ message: "Error sending email." });
+  }
+};
+
+// RESET PASSWORD - Update the password in DB
+export const resetPassword = async (req: Request, res: Response) => {
+  try {
+    const { token, password } = req.body;
+    const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+
+    const user = await User.findOne({
+      resetPasswordToken: hashedToken,
+      resetPasswordExpires: { $gt: Date.now() } 
+    });
+
+    if (!user) {
+      return res.status(400).json({ message: "Invalid or expired token." });
+    }
+
+    // Hash new password and clear reset fields
+    user.password = await bcrypt.hash(password, 10);
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    await user.save();
+
+    res.status(200).json({ message: "Password updated successfully!" });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to reset password." });
   }
 };
 
