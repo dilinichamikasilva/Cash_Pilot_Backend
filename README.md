@@ -128,6 +128,20 @@ npm run start
 * **Mobile-First Approach:** Optimized UI/UX for all screen sizes, ensuring financial management on the go.
 
 
+## 🌐 Live Demo
+
+You can access the live version of CashPilot here:  
+🚀 **Live Site:** [https://cash-pilot-frontend-qdgt.vercel.app/](https://cash-pilot-frontend-qdgt.vercel.app/)
+
+---
+
+## 🛠️ Deployment Detail
+
+* **Frontend:** Hosted on **Vercel** with automatic CI/CD.
+* **Backend:** [Link to Backend Repository](https://github.com/dilinichamikasilva/Cash_Pilot_Backend.git)
+* **Database:** MongoDB Atlas (Cloud)
+
+
 ## 🖼️ Website Previews
 
 Below are the initial UI designs for **CashPilot**, showcasing the clean, modern interface designed for effortless financial management.
