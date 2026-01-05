@@ -20,14 +20,14 @@ const app = express()
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
+const allowedOrigins = [process.env.CLIENT_URL, "http://localhost:5173"].filter(Boolean) as string[];
+
 app.use(
-    cors({
-        origin: ["https://cash-pilot-frontend-qdgt.vercel.app", 
-            "https://cash-pilot-frontend-qdgt.vercel.app/" , "http://localhost:5173"],
-        methods: ["GET", "POST", "PUT", "DELETE"],
-        credentials: true 
-    })
-)
+  cors({
+    origin: allowedOrigins,
+    credentials: true,
+  })
+);
 
 app.use("/api/v1/auth" , authRoutes)
 app.use("/api/v1/account" , accounteRoutes)
