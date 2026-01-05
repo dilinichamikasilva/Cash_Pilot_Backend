@@ -1,0 +1,13 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const budget_controller_1 = require("../controller/budget.controller");
+const auth_middleware_1 = require("../middleware/auth.middleware");
+const ai_controller_1 = require("../controller/ai.controller");
+const router = (0, express_1.Router)();
+router.post("/monthly-allocations", auth_middleware_1.authMiddleWare, budget_controller_1.createMonthlyAllocation);
+router.get("/view-monthly-allocations", auth_middleware_1.authMiddleWare, budget_controller_1.getMonthlyAllocation);
+router.post("/update-spending", auth_middleware_1.authMiddleWare, budget_controller_1.updateCategorySpending);
+router.get("/ai-suggestions", auth_middleware_1.authMiddleWare, ai_controller_1.getAISuggestions);
+router.get("/is-first-month", auth_middleware_1.authMiddleWare, budget_controller_1.checkFirstMonth);
+exports.default = router;
