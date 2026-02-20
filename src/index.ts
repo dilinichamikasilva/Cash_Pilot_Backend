@@ -38,8 +38,18 @@ app.use("/api/v1/analytics", analyticsRoutes);
 
 app.use(errorHandler)
 
+export default app;
+
+// connectDB(MONGO_URI).then(() => {
+//   app.listen(SERVER_PORT, () => {
+//     console.log(`Server is running on port ${SERVER_PORT}`);
+//   });
+// });
+
 connectDB(MONGO_URI).then(() => {
-  app.listen(SERVER_PORT, () => {
-    console.log(`Server is running on port ${SERVER_PORT}`);
-  });
+  if (process.env.NODE_ENV !== 'production') {
+    app.listen(SERVER_PORT, () => {
+      console.log(`Server is running locally on port ${SERVER_PORT}`);
+    });
+  }
 });
